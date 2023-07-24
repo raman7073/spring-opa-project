@@ -1,0 +1,24 @@
+
+app:
+  opa:
+    authz:
+      url: http://localhost:8181/v1/data
+
+
+
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 5000
+            readTimeout: 5000
+            loggerLevel: full
+
+
+logging:
+  level:
+    root: INFO
+    com.fiftyfive.springboot: DEBUG
+    org.springframework.security.web: DEBUG
