@@ -1,0 +1,35 @@
+version: "3.8"
+
+services:
+  opa:
+    container_name: opa
+    image: openpolicyagent/opa:latest
+    command:
+      - "run"
+      - "--server"
+    restart: always
+    networks:
+      springboot-opa-net:
+    ports:
+      - "8181:8181"
+
+
+  spring-opa-service:
+    container_name: spring-opa-services
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8082"
+    environment:
+      app.opa.authz.url:  http://opa:8181/v1/data
+    depends_on:
+      - opa
+    networks:
+      springboot-opa-net:
+    restart: on-failure
+
+
+
+networks:
+  springboot-opa-net:
