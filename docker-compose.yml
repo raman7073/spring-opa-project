@@ -1,35 +1,60 @@
 version: "3.8"
 
 services:
-  opa:
-    container_name: opa
-    image: openpolicyagent/opa:latest
-    command:
-      - "run"
-      - "--server"
-    restart: always
+  # broadcast_channel:
+  #   image: postgres:alpine
+  #   networks:
+  #     springboot-opa-net:
+  #   environment:
+  #     - POSTGRES_DB=postgres
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=postgres
+
+  opal_server:
+    image: permitio/opal-server:latest
+    environment:
+      # - OPAL_BROADCAST_URI=postgres://postgres:postgres@broadcast_channel:5432/postgres
+      - UVICORN_NUM_WORKERS=1
+      - OPAL_POLICY_REPO_URL=https://github.com/raman7073/spring-opa-project.git
+      - OPAL_POLICY_REPO_POLLING_INTERVAL=30
+      # - OPAL_DATA_CONFIG_SOURCES={"config":{"entries":[{"url":"http://opal_server:7002/policy-data","topics":["policy_data"],"dst_path":"/static"}]}}
+      - OPAL_LOG_FORMAT_INCLUDE_PID=true
     networks:
       springboot-opa-net:
     ports:
-      - "8181:8181"
+      - "7002:7002"
+    # depends_on:
+    #   - broadcast_channel
 
+  opal_client:
+    image: permitio/opal-client:latest
+    environment:
+      - OPAL_SERVER_URL=http://opal_server:7002
+      - OPAL_LOG_FORMAT_INCLUDE_PID=true
+      - OPAL_INLINE_OPA_LOG_FORMAT=http
+    ports:
+      - "7766:7000"
+      - "8181:8181"
+    networks:
+      springboot-opa-net:
+    depends_on:
+      - opal_server
+    command: sh -c "./wait-for.sh opal_server:7002 --timeout=20 -- ./start.sh"
 
   spring-opa-service:
-    container_name: spring-opa-services
+    container_name: spring-opa-service
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8080:8082"
     environment:
-      app.opa.authz.url:  http://opa:8181/v1/data
+      app.opa.authz.url: http://opal_client:8181/v1/data
     depends_on:
-      - opa
+      - opal_client
     networks:
       springboot-opa-net:
     restart: on-failure
-
-
 
 networks:
   springboot-opa-net:
